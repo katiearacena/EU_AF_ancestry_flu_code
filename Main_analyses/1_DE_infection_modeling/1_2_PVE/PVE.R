@@ -90,9 +90,6 @@ for(j in 1:length(datatypes)){
     length(to_remove_uniq)
     exp <- subset(exp, !(rownames(exp) %in% to_remove_uniq))
 
-    #no.var <- rownames(exp[rowVars(exp, na.rm=TRUE) == 0, ])
-    #exp <- subset(exp, !(rownames(exp) %in% no.var))
-
     ## should be == 0 if no mismatch
     length(which(colnames(exp)!=rownames(meta_data)))
     dim(exp)[1]
