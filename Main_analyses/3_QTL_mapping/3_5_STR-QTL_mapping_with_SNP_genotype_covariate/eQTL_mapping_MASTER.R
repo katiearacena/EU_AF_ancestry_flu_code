@@ -10,32 +10,36 @@ library(viridis)
 library(ggplot2)
 library(corrplot)
 library(rmeta)
-library(bsseq)
+library(dplyr)
+
 
 #################################
 ##### LOAD COMMAND LINE ARGS ####
 #################################
 
-## Load command line arguments
 args<-commandArgs(TRUE)
-## Datatype
+## Declare condition equal to "NI or "FLU" to obtain cis-EQTLs for each condition.
 condition <- args[1]
+## Declare data type.
+data <- args[2]
 ## Declare number of expression PCs to regress out.
-expPCs_reg <- args[2]
-## Declare directory for temp files. Include PCs reg and condition.
-temp_dir <- args[3]
+expPCs_reg <- args[3]
+## Declare directory for temp files
+temp_dir <- args[4]
 ## Declare output directory.
-res_dir <- args[4]
+res_dir <- args[5]
 
 if(length(args)==0)
-{
-  print("WARNING: No arguments supplied.")
-}
+  {
+    print("WARNING: No arguments supplied.")
+  }
 print(args)
 
-data <- "WGBS"
+
 # Perform 10 permutations to use for FDR correction.
 iterations <- 10
+print(data)
+
 
 #############################################################
 ## CREATE DIRECTORY STRUCTURE, SET FUNCTIONS, & LOAD DATA  ##
@@ -46,8 +50,8 @@ folder = "3_QTL_mapping"
 setwd('../../../')
 
 ## Create directory structure to save outputs.
-system(paste0("mkdir -p Outputs/",folder,"/SNP-QTL_mapping/", data, "/", condition, "/", res_dir, "/"))
-out_dir <- paste0("Outputs/",folder,"/SNP-QTL_mapping/", data, "/", condition, "/", res_dir, "/")
+system(paste0("mkdir -p Outputs/",folder,"/STR-QTL_mapping_SNPregression/corresponding_best_SNPs/", data, "/", condition, "/", res_dir, "/"))
+out_dir <- paste0("Outputs/",folder,"/STR-QTL_mapping_SNPregression/corresponding_best_SNPs/", data, "/", condition, "/", res_dir, "/")
 
 ## Create temp directory.
 system(paste0("mkdir -p ", out_dir, "temp_files/"))
@@ -59,45 +63,16 @@ system(paste0("mkdir -p ", out_dir, "/raw_results/"))
 system(paste0("mkdir -p ", out_dir, "/qqplots/"))
 
 ## Create directory for pvalue_histograms (if plan to create them).
-#system(paste0(""mkdir -p Outputs/", out_dir, "/pval_hists"))
+system(paste0("mkdir -p ", out_dir, "/pval_hists"))
 
 ## Erase any previous files from and re-create the temp file directory.
 system(paste0("rm -rf ",out_dir, "temp_files/", temp_dir, "/"))
 system(paste0("mkdir -p ",out_dir, "temp_files/", temp_dir, "/"))
 
-## Set functions
-# This function mean centers the data.
-mean_center_clean=function(cols_local,column){
-  index=which(colnames(cols_local)==column)
-  cols_local[,index]=cols_local[,index]-mean(cols_local[,index])
-  return(cols_local)
-}
-# This function applies mean centers function to desired metadata column. Here we apply it to age.
-pretty_up_cols=function(cols){
-
-  cols=refactorize(cols)
-  cols=mean_center_clean(cols,"Age")
-  return(cols)
-}
-# This function makes sure that desired metadata columns are factors.
-refactorize=function(cols_local){
-
-  cols_local$Genotyping_ID=factor(cols_local$Genotyping_ID,levels=unique(as.character(cols_local$Genotyping_ID)))
-  cols_local$Sample=factor(cols_local$Sample)
-  cols_local$Condition=factor(cols_local$Condition)
-  cols_local$Batch=factor(cols_local$Batch)
-  return(cols_local)
-}
-
 ##Load metadata
 metadata_whole = read.table(paste0("Inputs/metadata/", data, "_metadata.txt"))
-## Load unsmoothed BSseq object
-load("Inputs/counts_matrices/WGBS_filtered.counts.BSobj.RData")
-BS.fit <- BSobj.fit.nolow
-reads_whole <- getMeth(BS.fit, type = "raw")
-
-#chr22 <- reads_whole[grep('^22_', rownames(reads_whole)),]
-#reads_whole <- chr22
+## Load age and batch corrected voom normalized read counts
+reads_whole = read.table(paste0("Outputs/2_ancestry_effects_modeling/batch_corrected_cts_matrices/",data, "_batch.age.corrected.txt"), header=TRUE, row.names=1)
 
 ## Load positions file
 genepos = read.table(paste0("Inputs/QTL_mapping/",data, "_positions.txt"),header = TRUE, stringsAsFactors = FALSE)
@@ -106,10 +81,11 @@ snpspos = read.table(paste0("Inputs/QTL_mapping/SNP_positions.txt"),header = TRU
 ## Load genotype info for SNPs
 gtypes = read.table(paste0("Inputs/QTL_mapping/SNP_genotypes.txt"),header = TRUE, stringsAsFactors = FALSE)
 
-## only chr 22 for test
-#genotypes <- gtypes[grep('^22_', rownames(gtypes)),]
-#gtypes <- genotypes
-
+## Remove string from chipseq rownmames to make sure they match counts matrix
+rownames(metadata_whole)<- sub("_H3K27ac", "", rownames(metadata_whole))
+rownames(metadata_whole)<- sub("_H3K4me1", "", rownames(metadata_whole))
+rownames(metadata_whole)<- sub("_H3K27me3", "", rownames(metadata_whole))
+rownames(metadata_whole)<- sub("_H3K4me3", "", rownames(metadata_whole))
 
 # EQTL_set exists as an extra check on which samples to include in EQTL analysis.
 metadata_whole=metadata_whole[which(metadata_whole$EQTL_set==1),]
@@ -130,13 +106,11 @@ length(which(rownames(metadata_whole)!=colnames(reads_whole)))
 ## Filter expression and metadata per condition ##
 ##################################################
 
-## Mean center age & refactorize 
-metadata_whole=pretty_up_cols(metadata_whole)
 
-## Filter metadata based on condition.
+## Filter metadata based on condition. 
 metadata=metadata_whole[which(metadata_whole$Condition==condition),]
 
-## Clean factor variables
+## Clean factor variables, and mean center numeric ones.
 metadata$Condition=factor(metadata$Condition)
 metadata$Genotyping_ID=factor(metadata$Genotyping_ID)
 metadata$Batch=factor(metadata$Batch)
@@ -178,10 +152,10 @@ if(expPCs_reg==0){
         rownames(new) = rownames(input_data)
         return(new)
     }
-    expression = pca_rm(na.omit(reads), pc_set)
+    expression = pca_rm(reads, pc_set)
 }
 
-## Now have expression matrix with normalized reads and n PCs regressed.
+## Now have expression matrix with normalized reads and n PCs regressed. 
 
 
 #########################################################################################
@@ -198,6 +172,9 @@ rownames(metadata_individuals)=metadata_individuals$Genotyping_ID
 samples=colnames(gtypes)
 gtypes_pca=data.frame(snp_id=rownames(gtypes),gtypes)
 
+## NOTE: IF YOU RUN INTO AN ERROR: RUN snpgdsClose(genofile) TO RESET FILE OPEN/CLOSE
+# snpgdsClose(genofile)
+
 ## This creates a SNP genotype dataset from the gtypes_pca matrix.
 snpgdsCreateGeno(paste0(out_dir, "temp_files/", temp_dir, "/GDS_genotypes.gds"),
                  genmat = as.matrix(gtypes_pca[, samples]),
@@ -211,7 +188,7 @@ snpgdsSummary(paste0(out_dir, "temp_files/", temp_dir, "/GDS_genotypes.gds"))
 ## Load .gds file in as genofile.
 genofile <- snpgdsOpen(paste0(out_dir, "temp_files/", temp_dir, "/GDS_genotypes.gds"))
 
-## Perform a PCA on genofile/ genotype information.
+## Perform a PCA on genofile/ genotype information. 
 pca <- snpgdsPCA(genofile)
 ## Subset the first PC
 tab <- data.frame(sample.id = pca$sample.id,
@@ -224,18 +201,15 @@ pcs_genotypes=tab[which(tab$sample.id %in% rownames(metadata)),]
 pcs_genotypes=pcs_genotypes[order(pcs_genotypes$sample.id),]
 length(which(rownames(metadata) !=pcs_genotypes$sample.id))
 metadata$PC1=pcs_genotypes$PC1
-#subset age
-metadata$Age
-#subset batch
-metadata$Batch
 
-# Here the model is different than other datatypes since we have not previously accounted for age and batch
-covariates=t(model.matrix(~PC1+Age+Batch,data=metadata))
-covariates=covariates[2:nrow(covariates),]
+# batch and age are already accounted for in input reads.
+# PC1 of genotype data is the only covariate included (to account for population structure).
+covariates=t(model.matrix(~PC1,data=metadata))
+covariates=t(matrix((covariates[2:nrow(covariates),])))
+colnames(covariates) <- rownames(metadata)
 
 ## Check to make sure that rownames are correct and match gene_pos.
 expression=expression[which(rownames(expression) %in% genepos$Gene_ID),]
-
 
 ##########################################################################################
 ## Before calling matrixEQTL subset individuals present in the condition to analyze and ##
@@ -252,13 +226,13 @@ length(which(rownames(genotypes)!=snpspos$snp))
 
 ## Check input data files congruence 
 
-## Check for sample congruence. These should all be 0. If it is not 0 there is an issue.
+## Check for sample congruence. These should all be 0. If it is not 0 there is an issue. 
 length(which(rownames(metadata)!=colnames(covariates)))
 length(which(rownames(metadata)!=colnames(expression)))
 length(which(rownames(metadata)!=colnames(genotypes)))
 length(which(rownames(genotypes)!=snpspos$snp))
 
-## Gene-wise check. This step removes any genes for which there is not expression data.
+## Gene-wise check. This step removes any genes for which there is not expression data. 
 #use negate now since genepos and expression are not in same order.
 `%nin%` = Negate(`%in%`)
 
@@ -273,9 +247,9 @@ length(genepos$Gene_ID)
 length(rownames(expression))
 ## This output will tell you how many genes there are expression data for. They should all have the same length.
 
-##############################################
-## Save matrixEQTL temp input files. ####
-##############################################
+#######################################
+## Save matrixEQTL temp input files ###
+#######################################
 
 ## Save files.
 snps_positions_file_name="Inputs/QTL_mapping/SNP_positions.txt"
@@ -293,13 +267,13 @@ write.table(covariates,covariates_file_name, quote=F, sep="\t", row.names=TRUE)
 
 permuted_pvalues_folder=paste0(out_dir,"/raw_results/")
 for(iteration in 0:iterations){
-
+    
   ###################################################
   ## Permute genotype data (only for iterations>0) ##
   ###################################################
-
+  
   if(iteration>0){
-
+    
     cols<-colnames(genotypes)
     cols.perm<-sample(cols)
     if(iteration==1){
@@ -315,16 +289,16 @@ for(iteration in 0:iterations){
     ###############################
     ## Prepare & Run Matrix EQTL ##
     ###############################
-
+    
     ## Load phenotype data.
     gene = SlicedData$new();
-    gene$fileDelimiter = "\t";      # the TAB character
+    gene$fileDelimiter = "\t";     # the TAB character
     gene$fileOmitCharacters = "NA"; # denote missing values;
     gene$fileSkipRows = 1;          # one row of column labels
     gene$fileSkipColumns = 1;       # one column of row labels
     gene$fileSliceSize = 2000;      # read file in slices of 2,000 rows
     gene$LoadFile(expression_file_name);
-
+    
     ## Load covariates
     ## NOTE: If you are not regressing out any covariates add this line.
     # covariates_file_name = character()
@@ -337,28 +311,31 @@ for(iteration in 0:iterations){
     if(length(covariates_file_name)>0) {
         cvrt$LoadFile(covariates_file_name);
     }
-
+    
     ## Load genotype data
+    
     snps = SlicedData$new();
     snps$fileDelimiter = "\t";      # the TAB character
     snps$fileOmitCharacters = "NA";
-    snps$fileOmitCharacters = "-9"  # denote missing values;
+    snps$fileOmitCharacters = "-9" # denote missing values;
     snps$fileSkipRows = 1;          # one row of column labels
     snps$fileSkipColumns = 1;       # one column of row labels
     snps$fileSliceSize = 2000;      # read file in slices of 2,000 rows
     snps$LoadFile(SNP_file_name)
-
+    
     ## Set MatrixeQTL options
+
     useModel = modelLINEAR
     output_file_name_cis = tempfile()
     pvOutputThreshold_cis = 1
     pvOutputThreshold = 0;
     errorCovariance = numeric()
-    cisDist = 5000
+    cisDist = 1e5
     output_file_name = tempfile()
     output_file_name_cis = tempfile()
-
+    
     ## Begin MatrixeQTL
+
     me = Matrix_eQTL_main(
         snps = snps,
         gene = gene,
@@ -382,36 +359,35 @@ for(iteration in 0:iterations){
     plot(me, pch = 16, cex = 0.7)
     dev.off()
 
-    ## Can also create pvalue histograms (but takes extra time).
-
-#   me = Matrix_eQTL_main(
-#     snps = snps,
-#     gene = gene,
-#     cvrt = cvrt,
-#     output_file_name = output_file_name,
-#     useModel = useModel,
-#     errorCovariance = errorCovariance,
-#     verbose = TRUE,
-#     output_file_name.cis = output_file_name_cis,
-#     pvOutputThreshold = pvOutputThreshold,
-#     pvOutputThreshold.cis = pvOutputThreshold_cis,
-#     snpspos = snpspos,
-#     genepos = genepos,
-#     cisDist = cisDist,
-#     pvalue.hist = 100,
-#     min.pv.by.genesnp = TRUE,
-#     noFDRsaveMemory = FALSE);
-
-  ## Create pvalue histogram
-#    png(filename = paste0(out_dir, "/pval_hists/pval_histogram" ,iteration,".png"))
-#    plot(me, col="grey")
-#    dev.off()
-
-
-#################################
-## Write temporal output files ##
-#################################
-
+ ## Can also create pvalue histograms (but takes extra time).
+  
+  me = Matrix_eQTL_main(
+    snps = snps,
+    gene = gene,
+    cvrt = cvrt,
+    output_file_name = output_file_name,
+    useModel = useModel,
+    errorCovariance = errorCovariance,
+    verbose = TRUE,
+    output_file_name.cis = output_file_name_cis,
+    pvOutputThreshold = pvOutputThreshold,
+    pvOutputThreshold.cis = pvOutputThreshold_cis,
+    snpspos = snpspos,
+    genepos = genepos,
+    cisDist = cisDist,
+    pvalue.hist = 100,
+    min.pv.by.genesnp = TRUE,
+    noFDRsaveMemory = FALSE);
+  
+ ## Create pvalue histogram
+   png(filename = paste0(out_dir, "/pval_hists/pval_histogram" ,iteration,".png"))
+   plot(me, col="grey")
+   dev.off()
+    
+##############################################################
+#### 9. Write temporal output files ##########################
+##############################################################
+    
     unlink(output_file_name_cis);
 
     if(iteration==0){
@@ -424,9 +400,9 @@ for(iteration in 0:iterations){
 ## Write Best SNP-gene associations files for Delta-PVE analyses & prepare files for FDR corrections ##
 #######################################################################################################
 
-## Select the top cis-SNP for each gene in true and permuted files
+## Select the top cis-SNP for each gene in true and permuted files.
 for(iteration in 0:iterations)
-{
+{ 
     if(iteration==0){
         event=read.table(paste0(out_dir,"/raw_results/result_original.txt"),header=TRUE)
         event.sort<-event[order(event[,2],event[,4]),]
@@ -442,7 +418,7 @@ for(iteration in 0:iterations)
         original_best_EQTL=event.bestQTL
     }else{
         if(iteration==1)
-        {
+        {   
             permuted1_best_EQTL=event.bestQTL
             #only pull out the p-value.
             Permutation_Input = event.bestQTL[4]
@@ -460,14 +436,13 @@ for(iteration in 0:iterations)
 emp_pvalues <- empPvals(stat=-log10(original_best_EQTL[,4]), stat0=-log10(as.matrix(Permutation_Input)), pool = T)
 qvalues <- qvalue(p=emp_pvalues)$qvalue
 
-## Bind qvalue output with results_best_SNPs file
+## Bind qvalue output with results_best_SNPs file (assumes order is the same in both).
 results_best_SNPs_with_qval <- cbind(original_best_EQTL, qvalues)
 ## Write table with this column added.
 write.table(x=results_best_SNPs_with_qval, file= paste0(out_dir,"results_best_SNPs_with_qval.txt"), quote=FALSE)
 
 ## Save permuted best SNPs for 1 permutation
 write.table(permuted1_best_EQTL, file = paste0(out_dir,"permuted1_best_SNPs.txt"), quote=FALSE)
-
 
 ####################################################
 ## Create qqplot using p-values of best SNPs only ##
@@ -478,3 +453,13 @@ png(filename =  paste0(out_dir,"best_SNPs_qqplot.png"))
 qqplot(-log10(permuted1_best_EQTL[,4]), -log10(results_best_SNPs_with_qval[,4]), ylim=  c(0, 40), xlim= c(0, 40), main ="Best SNPs qqplot", xlab = "-log10(theoretical p-values)", ylab = "-log10(observed p-values)")
 abline(c(0,1),col="red")
 dev.off()
+
+########################################
+## Add SNP ID to results_original.txt ##
+########################################
+
+rsIDs <- read.table("Inputs/ref/rsIDs.for.matrixeqtl.txt")
+rsID_snps_only <- dplyr::select(rsIDs, rsID, snps)
+result_original <- read.table(paste0(out_dir,"/raw_results/result_original.txt"),header=TRUE)
+result_original_with_rsID <- right_join(rsID_snps_only, result_original, by = "snps")
+write.table(result_original_with_rsID, paste0(out_dir,"/raw_results/result_original_rsIDs.txt"))

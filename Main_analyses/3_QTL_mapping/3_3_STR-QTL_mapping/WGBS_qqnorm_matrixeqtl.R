@@ -47,8 +47,8 @@ folder = "3_QTL_mapping"
 setwd('../../../')
 
 ## Create directory structure to save outputs.
-system(paste0("mkdir -p Outputs/",folder,"/SNP-QTL_mapping/", data, "/", condition, "/", res_dir, "/"))
-out_dir <- paste0("Outputs/",folder,"/SNP-QTL_mapping/", data, "/", condition, "/", res_dir, "/")
+system(paste0("mkdir -p Outputs/",folder,"/STR-QTL_mapping/", data, "/", condition, "/", res_dir, "/"))
+out_dir <- paste0("Outputs/",folder,"/STR-QTL_mapping/", data, "/", condition, "/", res_dir, "/")
 
 ## Create temp directory.
 system(paste0("mkdir -p ", out_dir, "temp_files/"))
@@ -112,10 +112,10 @@ reads_whole <- getMeth(BSobj.fit.nolow, type="raw")
 
 ## Load positions file
 genepos = read.table(paste0("Inputs/QTL_mapping/",data, "_positions.txt"),header = TRUE, stringsAsFactors = FALSE)
-## Load SNP positions
-snpspos = read.table(paste0("Inputs/QTL_mapping/SNP_positions.txt"),header = TRUE, stringsAsFactors = FALSE)
-## Load genotype info for SNPs
-gtypes = read.table(paste0("Inputs/QTL_mapping/SNP_genotypes.txt"),header = TRUE, stringsAsFactors = FALSE)
+## Load STR positions
+strspos = read.table(paste0("Inputs/QTL_mapping/STR_positions.txt"),header = TRUE, stringsAsFactors = FALSE)
+## Load genotype info for STRs
+gtypes = read.table(paste0("Inputs/QTL_mapping/STR_genotypes.txt"),header = TRUE, stringsAsFactors = FALSE)
 
 
 # EQTL_set exists as an extra check on which samples to include in EQTL analysis.
@@ -218,64 +218,70 @@ metadata_individuals=metadata_whole[which(!duplicated(metadata_whole$Genotyping_
 metadata_individuals=metadata_individuals[order(metadata_individuals$Genotyping_ID),]
 rownames(metadata_individuals)=metadata_individuals$Genotyping_ID
 
-## Set the column names of gtypes to be the samples.
-samples=colnames(gtypes)
-gtypes_pca=data.frame(snp_id=rownames(gtypes),gtypes)
+## If the covariate table with genotype PC1 was not generated for SNP analysis,
+## perform PC analysis using the SNP genotypes
+if(file.exists(paste0("Outputs/3_QTL_mapping/SNP-QTL_mapping/",data,"/",condition,"/",data,"_",condition,"/temp_files/",data,"_",condition,"/covariates.txt"))){
+  covariates=read.table(paste0("Outputs/3_QTL_mapping/SNP-QTL_mapping/",data,"/",condition,"/",data,"_",condition,"/temp_files/",data,"_",condition,"/covariates.txt"))
+}else{
+  ## Set the column names of gtypes to be the samples.
+  SNPgtypes=read.table(paste0("Inputs/QTL_mapping/SNP_genotypes.txt"),header = TRUE, stringsAsFactors = FALSE)
+  samples=colnames(SNPgtypes)
+  gtypes_pca=data.frame(snp_id=rownames(SNPgtypes),SNPgtypes)
 
-## NOTE: IF YOU RUN INTO AN ERROR: RUN snpgdsClose(genofile) TO RESET FILE OPEN/CLOSE
-# snpgdsClose(genofile)
+  ## NOTE: IF YOU RUN INTO AN ERROR: RUN snpgdsClose(genofile) TO RESET FILE OPEN/CLOSE
+  # snpgdsClose(genofile)
 
-## This creates a SNP genotype dataset from the gtypes_pca matrix.
-snpgdsCreateGeno(paste0(out_dir, "temp_files/", temp_dir, "/GDS_genotypes.gds"),
+  ## This creates a SNP genotype dataset from the gtypes_pca matrix.
+  snpgdsCreateGeno(paste0(out_dir, "temp_files/", temp_dir, "/GDS_genotypes.gds"),
                  genmat = as.matrix(gtypes_pca[, samples]),
                  sample.id = unique(samples),
                  snp.id = gtypes_pca$snp_id,
                  snpfirstdim=TRUE)
 
-## This command tells you the total number of samples and SNPs in the .gds file.
-snpgdsSummary(paste0(out_dir, "temp_files/", temp_dir, "/GDS_genotypes.gds"))
+  ## This command tells you the total number of samples and SNPs in the .gds file.
+  snpgdsSummary(paste0(out_dir, "temp_files/", temp_dir, "/GDS_genotypes.gds"))
 
-## Load .gds file in as genofile.
-genofile <- snpgdsOpen(paste0(out_dir, "temp_files/", temp_dir, "/GDS_genotypes.gds"))
+  ## Load .gds file in as genofile.
+  genofile <- snpgdsOpen(paste0(out_dir, "temp_files/", temp_dir, "/GDS_genotypes.gds"))
 
-## Perform a PCA on genofile/ genotype information.
-pca <- snpgdsPCA(genofile)
-## Subset the first PC
-tab <- data.frame(sample.id = pca$sample.id,
+  ## Perform a PCA on genofile/ genotype information.
+  pca <- snpgdsPCA(genofile)
+  ## Subset the first PC
+  tab <- data.frame(sample.id = pca$sample.id,
                   PC1 = pca$eigenvect[,1],    # the first eigenvector
                   stringsAsFactors = FALSE)
 
-## Create covariates table.
-## Make sure that the pcs_genotypes file is properly labeled and ordered.
-pcs_genotypes=tab[which(tab$sample.id %in% rownames(metadata)),]
-pcs_genotypes=pcs_genotypes[order(pcs_genotypes$sample.id),]
-length(which(rownames(metadata) !=pcs_genotypes$sample.id))
-metadata$PC1=pcs_genotypes$PC1
-#subset age
-metadata$Age
-#subset batch
-metadata$Batch
+  ## Create covariates table.
+  ## Make sure that the pcs_genotypes file is properly labeled and ordered.
+  pcs_genotypes=tab[which(tab$sample.id %in% rownames(metadata)),]
+  pcs_genotypes=pcs_genotypes[order(pcs_genotypes$sample.id),]
+  length(which(rownames(metadata) !=pcs_genotypes$sample.id))
+  metadata$PC1=pcs_genotypes$PC1
+  #subset age
+  metadata$Age
+  #subset batch
+  metadata$Batch
 
-# Here the model is different than other datatypes since we have not previously accounted for age and batch
-covariates=t(model.matrix(~PC1+Age+Batch,data=metadata))
-covariates=covariates[2:nrow(covariates),]
-
+  # Here the model is different than other datatypes since we have not previously accounted for age and batch
+  covariates=t(model.matrix(~PC1+Age+Batch,data=metadata))
+  covariates=covariates[2:nrow(covariates),]
+}
 ## Check to make sure that rownames are correct and match gene_pos.
 expression=expression[which(rownames(expression) %in% genepos$Gene_ID),]
 
 
 ##########################################################################################
 ## Before calling matrixEQTL subset individuals present in the condition to analyze and ##
-## remove genes and SNPs from genotype and expression tables                            ##
+## remove genes and STRs from genotype and expression tables                            ##
 ## for which there is no available position (These wouldn't be tested for cis-EQTL,     ##
 ## but had useful info to include in PC analyses performed above)                       ##
 ##########################################################################################
 
 ## Subset the genotypes file with the individuals present in each condition.
 genotypes=gtypes[,which(colnames(gtypes) %in% colnames(covariates))]
-genotypes=genotypes[which(rownames(genotypes) %in% snpspos$snp),]
+genotypes=genotypes[which(rownames(genotypes) %in% strspos$str),]
 genotypes=genotypes[,order(colnames(genotypes))]
-length(which(rownames(genotypes)!=snpspos$snp))
+length(which(rownames(genotypes)!=strspos$str))
 
 ## Check input data files congruence 
 
@@ -283,7 +289,7 @@ length(which(rownames(genotypes)!=snpspos$snp))
 length(which(rownames(metadata)!=colnames(covariates)))
 length(which(rownames(metadata)!=colnames(expression)))
 length(which(rownames(metadata)!=colnames(genotypes)))
-length(which(rownames(genotypes)!=snpspos$snp))
+length(which(rownames(genotypes)!=strspos$str))
 
 ## Gene-wise check. This step removes any genes for which there is not expression data.
 #use negate now since genepos and expression are not in same order.
@@ -305,14 +311,14 @@ length(rownames(expression))
 #######################################
 
 ## Save files.
-snps_positions_file_name="Inputs/QTL_mapping/SNP_positions.txt"
+strs_positions_file_name="Inputs/QTL_mapping/STR_positions.txt"
 gene_positions_file_name=paste0("Inputs/QTL_mapping/", data, "_positions.txt")
 expression_file_name=paste0(out_dir, "temp_files/", temp_dir,"/expression.txt")
 covariates_file_name=paste0(out_dir, "temp_files/", temp_dir,"/covariates.txt")
-SNP_file_name=paste0(out_dir, "temp_files/", temp_dir,"/genotypes.txt")
+STR_file_name=paste0(out_dir, "temp_files/", temp_dir,"/genotypes.txt")
 
 ## Write files.
-write.table(genotypes,SNP_file_name, quote=F, sep="\t", row.names=TRUE)
+write.table(genotypes,STR_file_name, quote=F, sep="\t", row.names=TRUE)
 write.table(expression,expression_file_name, quote=F, sep="\t", row.names=TRUE)
 write.table(covariates,covariates_file_name, quote=F, sep="\t", row.names=TRUE)
 
@@ -336,7 +342,7 @@ for(iteration in 0:iterations){
     }
     genotypes<-genotypes[,cols.perm]
     colnames(genotypes)<-cols
-    write.table(genotypes,SNP_file_name, sep="\t", quote = FALSE)
+    write.table(genotypes,STR_file_name, sep="\t", quote = FALSE)
   }
 
     ###############################
@@ -373,7 +379,7 @@ for(iteration in 0:iterations){
     snps$fileSkipRows = 1;          # one row of column labels
     snps$fileSkipColumns = 1;       # one column of row labels
     snps$fileSliceSize = 2000;      # read file in slices of 2,000 rows
-    snps$LoadFile(SNP_file_name)
+    snps$LoadFile(STR_file_name)
 
     ## Set MatrixeQTL options
     useModel = modelLINEAR
@@ -448,10 +454,10 @@ for(iteration in 0:iterations){
 
 
 #######################################################################################################
-## Write Best SNP-gene associations files for Delta-PVE analyses & prepare files for FDR corrections ##
+## Write Best STR-gene associations files for Delta-PVE analyses & prepare files for FDR corrections ##
 #######################################################################################################
 
-## Select the top cis-SNP for each gene in true and permuted files
+## Select the top cis-STR for each gene in true and permuted files
 for(iteration in 0:iterations)
 {
     if(iteration==0){
@@ -483,35 +489,27 @@ for(iteration in 0:iterations)
 ## Use qvalue package to calculate FDR ##
 #########################################
 
-## Calculate qvalues using the best_SNPs files.
+## Calculate qvalues using the best_STRs files.
 emp_pvalues <- empPvals(stat=-log10(original_best_EQTL[,4]), stat0=-log10(as.matrix(Permutation_Input)), pool = T)
 qvalues <- qvalue(p=emp_pvalues)$qvalue
 
-## Bind qvalue output with results_best_SNPs file
-results_best_SNPs_with_qval <- cbind(original_best_EQTL, qvalues)
+## Bind qvalue output with results_best_STRs file
+results_best_STRs_with_qval <- cbind(original_best_EQTL, qvalues)
 ## Write table with this column added.
-write.table(x=results_best_SNPs_with_qval, file= paste0(out_dir,"results_best_SNPs_with_qval.txt"), quote=FALSE)
+write.table(x=results_best_STRs_with_qval, file= paste0(out_dir,"results_best_STRs_with_qval.txt"), quote=FALSE)
 
-## Save permuted best SNPs for 1 permutation
-write.table(permuted1_best_EQTL, file = paste0(out_dir,"permuted1_best_SNPs.txt"), quote=FALSE)
+## Save permuted best STRs for 1 permutation
+write.table(permuted1_best_EQTL, file = paste0(out_dir,"permuted1_best_STRs.txt"), quote=FALSE)
 
 
 ####################################################
-## Create qqplot using p-values of best SNPs only ##
+## Create qqplot using p-values of best STRs only ##
 ####################################################
 
-## Make and save best SNPs qqplot.
-png(filename =  paste0(out_dir,"best_SNPs_qqplot.png"))
-qqplot(-log10(permuted1_best_EQTL[,4]), -log10(results_best_SNPs_with_qval[,4]), ylim=  c(0, 40), xlim= c(0, 40), main ="Best SNPs qqplot", xlab = "-log10(theoretical p-values)", ylab = "-log10(observed p-values)")
+## Make and save best STRs qqplot.
+png(filename =  paste0(out_dir,"best_STRs_qqplot.png"))
+qqplot(-log10(permuted1_best_EQTL[,4]), -log10(results_best_STRs_with_qval[,4]), ylim=  c(0, 40), xlim= c(0, 40), main ="Best STRs qqplot", xlab = "-log10(theoretical p-values)", ylab = "-log10(observed p-values)")
 abline(c(0,1),col="red")
 dev.off()
 
-########################################
-## Add SNP ID to results_original.txt ##
-########################################
 
-rsIDs <- read.table("Inputs/ref/rsIDs.for.matrixeqtl.txt")
-rsID_snps_only <- dplyr::select(rsIDs, rsID, snps)
-result_original <- read.table(paste0(out_dir,"/raw_results/result_original.txt"),header=TRUE)
-result_original_with_rsID <- right_join(rsID_snps_only, result_original, by = "snps")
-write.table(result_original_with_rsID, paste0(out_dir,"/raw_results/result_original_rsIDs.txt"))

@@ -308,7 +308,6 @@ write.table(get_psd(m2), paste0(out_dir, data, "/mash_results/posteriorStandardD
 ## save R object
 save(m2, file=paste0(out_dir, data, "/mash_results/mash_output.Rdata"))
 
-### ** START FROM HERE *** #### NEED TO FIGURE OUT HOW TO MERGE BY ROWNAME IN LINE 316
 ## Write results tables with lfdr - local FDR
 lfdr <- as.data.frame(get_lfdr(m2))
 lfdr_FLU <- select(lfdr, "ConditionFlu:Admixture")
@@ -349,3 +348,83 @@ rownames(results_NI_lfdr_lfsr) <- results_NI_lfdr_lfsr$ID; results_NI_lfdr_lfsr$
 # Write mash results
 write.table(results_FLU_lfdr_lfsr, paste0(out_dir, data, "/mash_results/popDE_FLU.txt"))
 write.table(results_NI_lfdr_lfsr, paste0(out_dir, data, "/mash_results/popDE_NI.txt"))
+
+
+
+## Add average methylation counts and differences to results file
+cts <- getMeth(BS.fit, type="raw")
+
+AF_meta <- meta_data[meta_data$Ethnicity == "AF", ]
+EU_meta <- meta_data[meta_data$Ethnicity == "EU", ]
+
+AF_list <- AF_meta$Sample
+EU_list <- EU_meta$Sample
+
+NI_samples <- cts[,grepl("NI", colnames(cts))]
+FLU_samples <- cts[,grepl("Flu", colnames(cts))]
+
+AF_NI_samples <- NI_samples[,colnames(NI_samples) %in% AF_list]
+AF_FLU_samples <- FLU_samples[,colnames(FLU_samples) %in% AF_list]
+
+EU_NI_samples <- NI_samples[,colnames(NI_samples) %in% EU_list]
+EU_FLU_samples <- FLU_samples[,colnames(FLU_samples) %in% EU_list]
+
+##################################
+## GET DIFF  B/W BINARIZED POPS ##
+##################################
+
+### *** NEED TO MAKE SURE WORKS WITH OUT PUT REVIEW### 
+############
+## FOR NI ## 
+############
+
+AF_NI_avg <- as.data.frame(rowMeans(AF_NI_samples, na.rm=TRUE))
+colnames(AF_NI_avg) <- c("AF_mean")
+
+EU_NI_avg <- as.data.frame(rowMeans(EU_NI_samples, na.rm=TRUE))
+colnames(EU_NI_avg) <- c("EU_mean")
+
+AF_NI_avg$feature_id <- rownames(AF_NI_avg)
+EU_NI_avg$feature_id <- rownames(EU_NI_avg)
+
+NI_group_means <- full_join(AF_NI_avg, EU_NI_avg, by="feature_id")
+rownames(NI_group_means) <- NI_group_means$feature_id
+
+results_NI_BH_q$feature_id <- rownames(results_NI_BH_q)
+popDE_NI_with_means <-  left_join(results_NI_BH_q, NI_group_means, by="feature_id")
+popDE_NI_with_means$diff <- popDE_NI_with_means$AF_mean - popDE_NI_with_means$EU_mean
+
+## positive value == more meth in AF inds
+## negative value == more meth in EU inds
+
+#############
+## FOR FLU ## 
+#############
+
+AF_FLU_avg <- as.data.frame(rowMeans(AF_FLU_samples, na.rm=TRUE))
+colnames(AF_FLU_avg) <- c("AF_mean")
+
+EU_FLU_avg <- as.data.frame(rowMeans(EU_FLU_samples, na.rm=TRUE))
+colnames(EU_FLU_avg) <- c("EU_mean")
+
+AF_FLU_avg$feature_id <- rownames(AF_FLU_avg)
+EU_FLU_avg$feature_id <- rownames(EU_FLU_avg)
+
+FLU_group_means <- full_join(AF_FLU_avg, EU_FLU_avg, by="feature_id")
+rownames(FLU_group_means) <- FLU_group_means$feature_id
+
+results_FLU_BH_q$feature_id <- rownames(results_FLU_BH_q)
+popDE_FLU_with_means <-  left_join(results_FLU_BH_q, FLU_group_means, by="feature_id")
+popDE_FLU_with_means$diff <- popDE_FLU_with_means$AF_mean - popDE_FLU_with_means$EU_mean
+
+## positive value == more meth in AF inds
+## negative value == more meth in EU inds
+
+rownames(popDE_NI_with_means) <- popDE_NI_with_means$feature_id; popDE_NI_with_means$feature_id <- NULL
+rownames(popDE_FLU_with_means) <- popDE_FLU_with_means$feature_id; popDE_FLU_with_means$feature_id <- NULL
+
+## write
+write.table(popDE_FLU_with_means, paste0(out_dir, data, "/results/popDE_FLU.txt"))
+write.table(popDE_NI_with_means, paste0(out_dir, data, "/results/popDE_NI.txt"))
+
+

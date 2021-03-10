@@ -122,23 +122,26 @@ for (i in 1:length(datatypes)){
         ## save plots for only significant cpg sites
         resultsALL$peak_ids <- rownames(resultsALL)
         significant_hits <- resultsALL[resultsALL$qvals_FLU < .20, ]
-        gr_sig <- gr_full[gr_full@ranges@NAMES %in% rownames(significant_hits), ]
-        ## add "chr" to gr file
-        gr_sig@seqnames <- sub("^", "chr", gr_sig@seqnames)
-  
-        significant_hits_peakAnno <- annotatePeak(gr_sig, tssRegion=c(-3000, 3000),
-                                TxDb=txdb, annoDb="org.Hs.eg.db")
-        ## Save plots
-        pdf(paste0(results_dir,"/peakAnno_pichart_genomic_annotation_SIG.pdf"))
-        plotAnnoPie(significant_hits_peakAnno)
-        dev.off()
-        
-        pdf(paste0(results_dir,"peakAnno_barchart_SIG.pdf"))
-        plotDistToTSS(significant_hits_peakAnno,
-                    title="Distribution of transcription factor-binding loci\nrelative to TSS (Significant PopDR Hits (q < .20)")
-        dev.off()
 
-        significant_hits_peakAnno_df <- as.data.frame(significant_hits_peakAnno)
+        if(dim(significant_hits)[1] > 0){
+            gr_sig <- gr_full[gr_full@ranges@NAMES %in% rownames(significant_hits), ]
+            ## add "chr" to gr file
+            gr_sig@seqnames <- sub("^", "chr", gr_sig@seqnames)
+    
+            significant_hits_peakAnno <- annotatePeak(gr_sig, tssRegion=c(-3000, 3000),
+                                    TxDb=txdb, annoDb="org.Hs.eg.db")
+            ## Save plots
+            pdf(paste0(results_dir,"/peakAnno_pichart_genomic_annotation_SIG.pdf"))
+            plotAnnoPie(significant_hits_peakAnno)
+            dev.off()
+            
+            pdf(paste0(results_dir,"peakAnno_barchart_SIG.pdf"))
+            plotDistToTSS(significant_hits_peakAnno,
+                        title="Distribution of transcription factor-binding loci\nrelative to TSS (Significant PopDR Hits (q < .20)")
+            dev.off()
+
+            significant_hits_peakAnno_df <- as.data.frame(significant_hits_peakAnno)
+        }
         
         #############################################
         ## Merge gene symbol and id with cpg sites ##
@@ -199,32 +202,34 @@ for (i in 1:length(datatypes)){
         ## save plots for only significant cpg sites
         resultsALL$peak_ids <- rownames(resultsALL)
         significant_hits <- resultsALL[resultsALL$qvals_FLU < .20, ]
-        significant_hits_x <- as.data.frame(significant_hits$peak_ids)
-        
-        ### Connect peaks with gene ###
-        str1 <- stri_replace_last_fixed(significant_hits_x$`significant_hits$peak_ids`, "_", "\t")
-        str2 <- stri_replace_last_fixed(str1, "_", "\t")
-        end <- colsplit(str2, '\t', names =  c('chr','start', 'end'))
-        significant_hits_df <- as.data.frame(end)
-        significant_hits_df_final <- print(significant_hits_df, quote=FALSE)
 
-        ## Get GRanges object
-        significant_hits_gr <- makeGRangesFromDataFrame(significant_hits_df_final)
-        significant_hits_peakAnno <- annotatePeak(significant_hits_gr, tssRegion=c(-3000, 3000),
-                                TxDb=txdb, annoDb="org.Hs.eg.db")
+        if(dim(significant_hits)[1] > 0){
+            significant_hits_x <- as.data.frame(significant_hits$peak_ids)
         
-        ## Save plots
-        pdf(paste0(results_dir,"/peakAnno_pichart_genomic_annotation_SIG.pdf"))
-        plotAnnoPie(significant_hits_peakAnno)
-        dev.off()
-        
-        pdf(paste0(results_dir,"peakAnno_barchart_SIG.pdf"))
-        plotDistToTSS(significant_hits_peakAnno,
-                    title="Distribution of transcription factor-binding loci\nrelative to TSS (Significant PopDR Hits (q < .20)")
-        dev.off()
+            ### Connect peaks with gene ###
+            str1 <- stri_replace_last_fixed(significant_hits_x$`significant_hits$peak_ids`, "_", "\t")
+            str2 <- stri_replace_last_fixed(str1, "_", "\t")
+            end <- colsplit(str2, '\t', names =  c('chr','start', 'end'))
+            significant_hits_df <- as.data.frame(end)
+            significant_hits_df_final <- print(significant_hits_df, quote=FALSE)
 
-        significant_hits_peakAnno_df <- as.data.frame(significant_hits_peakAnno)
-        
+            ## Get GRanges object
+            significant_hits_gr <- makeGRangesFromDataFrame(significant_hits_df_final)
+            significant_hits_peakAnno <- annotatePeak(significant_hits_gr, tssRegion=c(-3000, 3000),
+                                    TxDb=txdb, annoDb="org.Hs.eg.db")
+            
+            ## Save plots
+            pdf(paste0(results_dir,"/peakAnno_pichart_genomic_annotation_SIG.pdf"))
+            plotAnnoPie(significant_hits_peakAnno)
+            dev.off()
+            
+            pdf(paste0(results_dir,"peakAnno_barchart_SIG.pdf"))
+            plotDistToTSS(significant_hits_peakAnno,
+                        title="Distribution of transcription factor-binding loci\nrelative to TSS (Significant PopDR Hits (q < .20)")
+            dev.off()
+
+            significant_hits_peakAnno_df <- as.data.frame(significant_hits_peakAnno)
+        }    
         ############################################
         ## Merge gene symbol and id with peak_ids ##
         ############################################

@@ -190,11 +190,15 @@ for (i in 1:length(datatypes)){
     ###############################
     
     if(data_type_i =="WGBS"){
-        ## Extract gene symbol and stat 
-        ranks <- results_with_genes[, c("symbol", "stat")]
-        ## Order t statistic in descending order (from + to - t statistic)
-        ranks_t <- ranks[order(-(ranks$stat)), ]
-        ranks_for_gsea <- setNames(ranks_t$stat, ranks_t$symbol)
+        ## Extract gene symbol and diff 
+        ranks <- results_with_genes[, c("symbol", "diff")]
+        ## change this so that the interpretation is that the more positive numbers = gain of methylation in flu
+        ## negative numbers = loss of methylation in flu
+        ranks$diff <- ranks$diff * -1 
+        ## Order diff in descending order (from + to - t statistic)
+        ranks_t <- ranks[order(-(ranks$diff)), ]
+        ranks_for_gsea <- setNames(ranks_t$diff, ranks_t$symbol)
+
     }else{
 
         ## Extract gene symbol and t statistic

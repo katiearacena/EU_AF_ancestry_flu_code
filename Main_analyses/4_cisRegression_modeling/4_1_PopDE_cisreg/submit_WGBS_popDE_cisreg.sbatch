@@ -1,22 +1,22 @@
 #!/bin/bash
 
 ############################################
-#SBATCH --job-name=GSEA
-#SBATCH --output=logs/GSEA-%j.out
-#SBATCH --error=logs/GSEA-%j.err
-#SBATCH --time=02:00:00
+#SBATCH --job-name=WGBS_cisregPopDE
+#SBATCH --output=logs/WGBS_cisregPopDE-%j.out
+#SBATCH --error=logs/WGBS_cisregPopDE-%j.err
+#SBATCH --time=96:00:00
 #SBATCH --partition=lbarreiro
-#SBATCH --mem=48G
+#SBATCH --mem=200G
 #SBATCH --nodes=1
 #SBATCH --mail-user=karacena@uchicago.edu
 #SBATCH --mail-type=ALL
 ############################################
 
-module load R
+# make logs directory.
+mkdir logs
 
-Rscript popDE_NI_GSEA.R
-Rscript popDE_Flu_GSEA.R
-#Rscript popDR_GSEA.R
+module load R
+Rscript WGBS_PopDE_cisreg_SNPs.R
 
 wait
 

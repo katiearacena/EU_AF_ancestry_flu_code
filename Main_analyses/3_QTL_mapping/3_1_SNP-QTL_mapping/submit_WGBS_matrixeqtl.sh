@@ -2,15 +2,10 @@
 #!/bin/bash
 mkdir logs
 
-CONDITIONS=(NI Flu NI Flu)
-PCS=(0 0 1 1)
-TEMP_DIRS=(qqnorm_0expPC_NI qqnorm_0expPC_Flu qqnorm_1expPC_NI qqnorm_1expPC_Flu)
-OUT_DIRS=(qqnorm_0expPCs qqnorm_0expPCs qqnorm_1expPCs qqnorm_1expPCs)
-
-#CONDITIONS=(NI Flu NI Flu)
-#PCS=(0 0 1 1)
-#TEMP_DIRS=(0expPC_NI 0expPC_Flu 1expPC_NI 1expPC_Flu)
-#OUT_DIRS=(0expPCs 0expPCs 1expPCs 1exPCs)
+CONDITIONS=(NI Flu)
+PCS=(0 0)
+TEMP_DIRS=(WGBS_NI WGBS_Flu)
+OUT_DIRS=(WGBS_NI WGBS_Flu)
 
 LEN=${#CONDITIONS[@]}
 
