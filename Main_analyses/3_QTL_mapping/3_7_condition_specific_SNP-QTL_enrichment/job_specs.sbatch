@@ -1,0 +1,28 @@
+#!/bin/bash
+
+############################################
+#SBATCH --job-name=TF_enrich
+#SBATCH --output=logs/TF_enrich-%j.out
+#SBATCH --error=logs/TF_enrich-%j.err
+#SBATCH --time=128:00:00
+#SBATCH --partition=lbarreiro
+#SBATCH --mem=48G
+#SBATCH --nodes=1
+#SBATCH --mail-user=karacena@uchicago.edu
+#SBATCH --mail-type=ALL
+############################################
+
+mkdir logs 
+
+DATA=${1}
+CONDITION=${2}
+
+module load R
+
+Rscript TF_footprinting_condition_specific.R $DATA $CONDITION
+
+wait
+
+echo " COMPLETED AT `date`"
+
+## EOF ##

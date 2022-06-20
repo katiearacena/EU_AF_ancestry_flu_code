@@ -1,0 +1,6 @@
+The MASH pipeline for WGBS is split into 2 parts due to computational limitations. 
+
+Part 1 extracts the betas and se of betas from the matrix eqtl results for all snp-gene pairs,
+the correlation structure using the null tests is estimated, and fits mash to the random tests.
+
+Part 2 computes posterior summaries for the strong tests using the previous mash fit and saves the results.
