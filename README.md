@@ -20,7 +20,7 @@ Note: Many scripts run R scripts for each data type and condition separately. In
 
 ## Description of analyses 
 
-# `1_DE_infection_modeling`
+### `1_DE_infection_modeling`
 - `1_1_DE_infection`
 	- Differential infection effects (Figure 1C)
 - `1_2_PVE`
@@ -31,7 +31,7 @@ Note: Many scripts run R scripts for each data type and condition separately. In
 	- Transcription factor activity scores (Figure 1G)
 
 
-# `2_ancestry_effects_modeling`
+### `2_ancestry_effects_modeling`
 - `2_1_get_batch_age_corrected_cts`
 	- Batch and age corrected counts used for ancestry and QTL mapping analyses (with the exception of methylation data)
 - `2_2_PopDE`
@@ -45,7 +45,7 @@ Note: Many scripts run R scripts for each data type and condition separately. In
 - `2 6_epi_priming`
 	- Predicting transcriptional response using epigenetic marks at baseline (Figure 2E, S2D)
 
-# `3_QTL_mapping`
+### `3_QTL_mapping`
 
 - `3_1_SNP-QTL_mapping`
 	- SNP QTL mapping (Figure 3A, S3A, S3C)
@@ -67,7 +67,7 @@ Note: Many scripts run R scripts for each data type and condition separately. In
 	- Gene expression and epigenetic mark levels in regions that are caQTL at baseline (Figure 4F, S4E)
 
 
-# `4_cisRegression_modeling`
+### `4_cisRegression_modeling`
 - ` 4_1_PopDE_cisreg`
 	- PopDE effects after regressing out the top SNP and STR (used as input for `4_7_cisreg_ancestry_GSEA`)
 - `4_2_PopDE_SNP-QTL`
