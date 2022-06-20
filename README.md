@@ -4,7 +4,7 @@ This repository contains the code needed to conduct main analyses for Aracena et
 
 Currently available on BioRxiv: https://www.biorxiv.org/content/10.1101/2022.05.10.491413v1
 
-KA Aracena, YL Lin, K Luo, A Pacis, S Gona, Z Mu, V Yotova, R Sindeaux, A Pramatarova, MM Simon, X Chen, C Groza, D Lougheed, R Gregoire, D Brownlee, Y Li, X He, D Bujold, T Pastinen, G bourque, LB Barreiro
+KA Aracena, YL Lin, K Luo, A Pacis, S Gona, Z Mu, V Yotova, R Sindeaux, A Pramatarova, MM Simon, X Chen, C Groza, D Lougheed, R Gregoire, D Brownlee, Y Li, X He, D Bujold, T Pastinen, G Bourque, LB Barreiro
 
 
 ## General dependencies
