@@ -11,7 +11,7 @@ KA Aracena, YL Lin, K Luo, A Pacis, S Gona, Z Mu, V Yotova, R Sindeaux, A Pramat
 R (tested in version 3.6.3)
 
 ## Usage
-1. Place the folder `Inputs`, available for download on Zenodo (XXXXX), in the desired working directory.
+1. Place the folder `Inputs`, available for download on Zenodo (https://zenodo.org/record/6672720), in the desired working directory.
 2. Place the folder `Main_analyses` in the same directory. 
 3. Check individual dependencies at the header of each script stored in `Main_analyses` and install the necessary CRAN and Bioconductor packages.
 4. Run the scripts stored in `Main_analyses` in R -- if  `Main_analyses` and `Inputs` are located in the same directory, results will populate in a folder named `Outputs`.
