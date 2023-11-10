@@ -1,0 +1,4 @@
+PrediXan model training is done using the pipeline developed by the Im lab <https://github.com/hakyimlab/PredictDBPipeline>
+We modified the create_model.R and parameter.py to train models with the genotypes and genomic phenotypes of the samples of interests.
+
+ 

@@ -1,0 +1,609 @@
+---
+title: "Estimate the heritablity and enrichment of GWAS variants in regulatory QTLs using S-LDSC"
+author: "Kaixuan Luo"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+```
+
+## Prepare annotation files and compute LD scores for binary annotations
+
+1. Prepare annotations in BED format for QTL binary annotations
+
+Convert regulatory QTLs (SNP level FDR < 10%) to binary annotations in BED format. 
+
+The annotation files are in `/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/QTL_annot/`
+
+SNP-level FDR < 10%
+```{bash, eval=FALSE}
+Rscript ~/projects/flu_regulatoryQTLs/code/prepare_QTL_binary_annot_bedfiles.R 0.1 /project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/annot_bed/
+
+Rscript ~/projects/flu_regulatoryQTLs/code/prepare_WGBS_QTL_binary_annot_bedfiles.R 0.1 /project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/annot_bed/
+
+```
+
+2. Compute LD scores for QTL annotations
+
+First, generate ldsc-friendly annotation files (annot.gz) from the annotation BED files using  
+[R script](../code/make_ldsc_binary_annot.R) and [code](../code/ldsc_binary_annot_QTL.sbatch), 
+and then computes LD scores using the annot file (annot.gz).
+
+Computed LD scores for QTL annotations are in `/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/output/ldscores/`.
+
+SNP-level FDR < 10%
+```{bash, eval=FALSE}
+ANNOT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/
+OUT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/
+
+## Compute LD scores for QTL annotations
+for bedfile in /project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/annot_bed/*_QTLs_FDR0.1.bed
+do
+  ANNOT_PREFIX="$(basename ${bedfile} .bed)"
+  echo ${ANNOT_PREFIX}
+  sbatch ~/projects/flu_regulatoryQTLs/code/ldsc_binary_annot_QTL.sbatch ${ANNOT_PREFIX} ${ANNOT_DIR} ${OUT_DIR}
+done
+
+## Compute LD scores for WGBS QTL annotations
+for bedfile in /project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/annot_bed/WGBS_*E*_QTLs_FDR0.1.bed
+do
+  ANNOT_PREFIX="$(basename ${bedfile} .bed)"
+  echo ${ANNOT_PREFIX}
+  sbatch  ~/projects/flu_regulatoryQTLs/code/ldsc_binary_annot_QTL.sbatch ${ANNOT_PREFIX} ${ANNOT_DIR} ${OUT_DIR}
+done
+
+```
+
+Histone marks
+```{bash, eval=FALSE}
+cp /project2/xinhe/kevinluo/flu_regulatoryQTLs/histone_bed_files/*.bed /project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/annot_bed/
+
+ANNOT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/
+OUT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/
+
+## Compute LD scores for histone mark peak annotations
+for bedfile in /project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/annot_bed/H3*_pos.bed
+do
+  ANNOT_PREFIX="$(basename ${bedfile} .bed)"
+  echo ${ANNOT_PREFIX}
+  sbatch --account=pi-xinhe ~/projects/flu_regulatoryQTLs/code/ldsc_binary_annot_QTL.sbatch ${ANNOT_PREFIX} ${ANNOT_DIR} ${OUT_DIR}
+done
+```
+
+
+## Prepare annotation files and compute LD scores for susie PIP based continuous annotations
+
+1. Prepare annotations in BED format for susie PIP based continuous annotations
+
+The annotation files are in `/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/QTL_annot/`
+
+SNP-level FDR < 10%
+```{bash, eval=FALSE}
+Rscript ~/projects/flu_regulatoryQTLs/code/prepare_QTL_annot_bedfiles_PIP.R dist
+
+Rscript ~/projects/flu_regulatoryQTLs/code/prepare_QTL_annot_bedfiles_PIP.R uniform
+```
+
+2. Compute LD scores
+
+PIP based continuous annotations
+
+Distance prior
+```{bash, eval=FALSE}
+ANNOT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/
+OUT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/
+
+## Compute LD scores for PIP annotations using distance prior
+for bedfile in /project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/annot_bed/*_PIP_dist_prior_FDR0.1.bed
+do
+  ANNOT_PREFIX="$(basename ${bedfile} .bed)"
+  echo ${ANNOT_PREFIX}
+  sbatch  ~/projects/flu_regulatoryQTLs/code/ldsc_continuous_annot_QTL.sbatch ${ANNOT_PREFIX} ${ANNOT_DIR} ${OUT_DIR}
+done
+
+```
+
+Uniform prior
+```{bash}
+ANNOT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/
+OUT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/
+
+## Compute LD scores for PIP annotations using uniform prior
+for bedfile in /project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/annot_bed/*_PIP_uniform_prior_FDR0.1.bed
+do
+  ANNOT_PREFIX="$(basename ${bedfile} .bed)"
+  echo ${ANNOT_PREFIX}
+  sbatch  ~/projects/flu_regulatoryQTLs/code/ldsc_continuous_annot_QTL.sbatch ${ANNOT_PREFIX} ${ANNOT_DIR} ${OUT_DIR}
+done
+```
+
+PIPs for combined WGBS
+```{bash}
+ANNOT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/
+OUT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/
+
+## Compute LD scores for PIP annotations using distance prior
+ANNOT_PREFIXS=("WGBS_Flu_PIP_dist_prior_FDR0.1" "WGBS_NI_PIP_dist_prior_FDR0.1" "WGBS_Flu_PIP_uniform_prior_FDR0.1" "WGBS_NI_PIP_uniform_prior_FDR0.1")
+
+for ANNOT_PREFIX in "${ANNOT_PREFIXS[@]}" 
+do
+  echo ${ANNOT_PREFIX}
+  sbatch  ~/projects/flu_regulatoryQTLs/code/ldsc_continuous_annot_QTL.sbatch ${ANNOT_PREFIX} ${ANNOT_DIR} ${OUT_DIR}
+done
+```
+
+
+## Prepare GWAS summary statistics in LDSC format
+
+Convert GWAS summary statistics to the .sumstats format using the `munge_sumstats.py` script from LDSC. 
+
+## Partition heritability using S-LDSC
+https://github.com/bulik/ldsc/wiki/Partitioned-Heritability
+
+### Partition heritability
+
+Estimate the partitioned heritability and enrichment for each annotation separately.
+
+[code](../code/sldsc_annot_baselineLD_separate.sbatch) 
+
+Run S-LDSC across a number of GWAS traits over the QTL annotations.
+
+Results are saved in `/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/output`
+
+SNP-level FDR < 10%
+```{bash, eval=FALSE, include=FALSE}
+TRAITS=("AE" "MS" "RA" "Allergy" "Asthma" "ApD" "IIBDGC-CD" "IIBDGC-IBD" "IIBDGC-UC" "TAGC-Asthma" "SLE" "CD" "IBD" "UC")
+
+# generic baseline v2.2 light version
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_QTL_annots_generic_baseline.sbatch ${trait} baseline_gene_MAF_LD_light_v2.2
+done
+
+# generic baseline v2.2 light version with histone marks
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_QTL_annots_generic_baseline.sbatch ${trait} baseline_gene_MAF_LD_histone_light_v2.2
+done
+```
+
+Susie PIP based continuous annotation
+```{bash, eval=FALSE, include=FALSE}
+TRAITS=("AE" "MS" "RA" "Allergy" "Asthma" "ApD" "IIBDGC-CD" "IIBDGC-IBD" "IIBDGC-UC" "TAGC-Asthma" "SLE" "CD" "IBD" "UC")
+
+# generic baseline v2.2 light version
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_PIP_annots_generic_baseline.sbatch ${trait} baseline_gene_MAF_LD_light_v2.2
+done
+
+# generic baseline v2.2 light version with histone marks 
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_PIP_annots_generic_baseline.sbatch ${trait} baseline_gene_MAF_LD_histone_light_v2.2
+done
+
+# generic baseline v2.2 light version, joint with histone marks in this study
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_PIP_annots_generic_baseline_joint_histone.sbatch ${trait} baseline_gene_MAF_LD_light_v2.2
+done
+```
+
+## Control GWAS traits
+
+SNP-level FDR < 10%
+```{bash, eval=FALSE, include=FALSE}
+TRAITS=("Height" "BMI" "Schizophrenia")
+
+# generic baseline v2.2 light version
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_QTL_annots_generic_baseline.sbatch ${trait} baseline_gene_MAF_LD_light_v2.2
+done
+
+# generic baseline v2.2 light version with histone marks
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_QTL_annots_generic_baseline.sbatch ${trait} baseline_gene_MAF_LD_histone_light_v2.2
+done
+
+# generic baseline v2.2, joint with histone marks in this study
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_QTL_annots_generic_baseline_joint_histone.sbatch ${trait} baseline_gene_MAF_LD_light_v2.2
+done
+```
+
+Susie PIP based continuous annotation
+```{bash, eval=FALSE}
+TRAITS=("Height" "BMI" "Schizophrenia")
+
+# generic baseline v2.2 light version
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_PIP_annots_generic_baseline.sbatch ${trait} baseline_gene_MAF_LD_light_v2.2
+done
+
+# generic baseline v2.2 light version with histone marks 
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_PIP_annots_generic_baseline.sbatch ${trait} baseline_gene_MAF_LD_histone_light_v2.2
+done
+
+# generic baseline v2.2 light version, joint with histone marks in this study
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_PIP_annots_generic_baseline_joint_histone.sbatch ${trait} baseline_gene_MAF_LD_light_v2.2
+done
+
+```
+
+
+## Generic correlation
+
+```{bash}
+source activate ldsc
+
+GWAS_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/GWAS_summary_stats/ldsc_format
+LDSC_DIR=/project2/xinhe/kevinluo/ldsc
+SLDSC_OUTDIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/output
+
+TRAITS=("AE" "MS" "RA" "Allergy" "Asthma" "CD" "IBD" "UC")
+
+for TRAIT in "${TRAITS[@]}"
+do
+  python2 /project2/xinhe/kevinluo/software/ldsc/ldsc.py \
+  --rg ${GWAS_DIR}/${TRAIT}.sumstats.gz,${GWAS_DIR}/AE.sumstats.gz,${GWAS_DIR}/MS.sumstats.gz,${GWAS_DIR}/RA.sumstats.gz,${GWAS_DIR}/Allergy.sumstats.gz,${GWAS_DIR}/Asthma.sumstats.gz,${GWAS_DIR}/CD.sumstats.gz,${GWAS_DIR}/IBD.sumstats.gz,${GWAS_DIR}/UC.sumstats.gz \
+  --ref-ld-chr ${LDSC_DIR}/LDSCORE/1000G_Phase3_ldscores/LDscore. \
+  --w-ld-chr ${LDSC_DIR}/LDSCORE/1000G_Phase3_weights_hm3_no_MHC/weights.hm3_noMHC. \
+  --out ${SLDSC_OUTDIR}/rg/rg_${TRAIT}_vs_other_traits
+done
+
+```
+
+
+## S-LDSC analysis using LDSC reference from African population
+
+### Prepare LDSC reference files for African population
+
+```{bash, eval=FALSE}
+## adapted from https://cran.r-project.org/web/packages/snpsettest/vignettes/reference_1000Genomes.html
+# reference: https://dougspeed.com/1000-genomes-project/
+
+## Download raw files
+wget https://www.dropbox.com/s/y6ytfoybz48dc0u/all_phase3.pgen.zst
+wget https://www.dropbox.com/s/odlexvo8fummcvt/all_phase3.pvar.zst
+wget https://www.dropbox.com/s/6ppo144ikdzery5/phase3_corrected.psam
+mv phase3_corrected.psam all_phase3.psam
+
+# Decompress pgen.zst to pgen
+plink2 --zst-decompress all_phase3.pgen.zst > all_phase3.pgen
+
+# "vzs" modifier to directly operate with pvar.zst
+# "--chr 1-22" excludes all variants not on the listed chromosomes
+# "--output-chr 26" uses numeric chromosome codes
+# "--max-alleles 2": PLINK 1 binary does not allow multi-allelic variants
+# "--rm-dup" removes duplicate-ID variants
+# "--set-missing-var-id" replaces missing IDs with a pattern
+# restricting to autosomal SNPs with MAF>0.01
+plink2 --pfile all_phase3 vzs \
+       --chr 1-22 \
+       --output-chr 26 \
+       --max-alleles 2 \
+       --set-missing-var-ids '@_#_$1_$2' \
+       --maf 0.01 \
+       --snps-only just-acgt \
+       --rm-dup exclude-all \
+       --make-pgen \
+       --out all_phase3_autosomes
+       
+# Prepare sub-population filter file
+awk 'NR == 1 || $5 == "EUR" {print $1}' all_phase3.psam > EUR_1kg_samples.txt
+
+awk 'NR == 1 || $5 == "AFR" {print $1}' all_phase3.psam > AFR_1kg_samples.txt
+
+# Generate sub-population fileset
+## Convert the 1000 Genomes data to PLINK 1 binary format
+plink2 --pfile all_phase3_autosomes \
+       --keep EUR_1kg_samples.txt \
+       --make-bed \
+       --out 1000G_EUR_phase3_autosomes
+
+plink2 --pfile all_phase3_autosomes \
+       --keep AFR_1kg_samples.txt \
+       --make-bed \
+       --out 1000G_AFR_phase3_autosomes
+
+## Download genetic distances, then insert genetic maps
+wget https://www.dropbox.com/s/slchsd0uyd4hii8/genetic_map_b37.zip
+unzip genetic_map_b37.zip
+
+plink --bfile 1000G_EUR_phase3_autosomes \
+  --cm-map genetic_map_b37/genetic_map_chr@_combined_b37.txt \
+  --make-bed --out 1000G_EUR_phase3_autosomes
+
+plink --bfile 1000G_AFR_phase3_autosomes \
+  --cm-map genetic_map_b37/genetic_map_chr@_combined_b37.txt \
+  --make-bed --out 1000G_AFR_phase3_autosomes
+
+# Split bed/bim/fam by chromosome and save to LDSCORE directory
+mkdir /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_AFR_Phase3_plink
+for i in {1..22}
+do 
+  plink2 --bfile 1000G_AFR_phase3_autosomes --chr $i --make-bed --out /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_AFR_Phase3_plink/1000G.AFR.phase3.$i
+done
+
+```
+
+Estimate LD Scores for African population
+```{bash, eval=FALSE}
+mkdir -p /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_Phase3_AFR_ldscores/
+
+source activate ldsc
+
+for chrom in {1..22}
+do
+  echo ${chrom}
+
+  python /project2/xinhe/kevinluo/software/ldsc/ldsc.py \
+  --bfile /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_AFR_Phase3_plink/1000G.AFR.phase3.${chrom} \
+  --l2 \
+  --ld-wind-cm 1 \
+  --out /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_Phase3_AFR_ldscores/LDscore.AFR.${chrom}
+done
+
+```
+
+Compute weights of LD scores for AFR population
+```{bash, eval=FALSE}
+mkdir -p /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_AFR_Phase3_weights_hm3_no_MHC/
+
+source activate ldsc
+
+for chrom in {1..22}
+do
+  echo ${chrom}
+
+  python /project2/xinhe/kevinluo/software/ldsc/ldsc.py \
+  --bfile /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_AFR_Phase3_plink/1000G.AFR.phase3.${chrom} \
+  --l2 \
+  --ld-wind-cm 1 \
+  --extract /project2/xinhe/kevinluo/ldsc/LDSCORE/w_hm3.snplist \
+  --out /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_AFR_Phase3_weights_hm3_no_MHC/weights.AFR.hm3_noMHC.${chrom}
+done
+
+```
+
+Generate minor allele frequencies (MAF) for AFR population
+```{bash, eval=FALSE}
+mkdir /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_AFR_phase3_frq/
+
+for chrom in {1..22}
+do
+  echo ${chrom}
+  
+  plink --bfile /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_AFR_Phase3_plink/1000G.AFR.phase3.${chrom} \
+  --freq --out /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_AFR_phase3_frq/1000G.AFR.phase3.${chrom}
+done
+```
+
+gene baseline annotations
+```{bash}
+mkdir -p /project2/xinhe/kevinluo/ldsc/annot/LDSCORE_baseline_v2.2_gene_bedfiles
+cd /project2/xinhe/kevinluo/ldsc/annot/LDSCORE_baseline_v2.2_gene_bedfiles
+
+cp /project2/xinhe/kevinluo/ldsc/LDSCORE/baselineLD_v2.2_bedfiles/Coding_* ./
+cp /project2/xinhe/kevinluo/ldsc/LDSCORE/baselineLD_v2.2_bedfiles/UTR_* ./
+cp /project2/xinhe/kevinluo/ldsc/LDSCORE/baselineLD_v2.2_bedfiles/Intron_* ./
+cp /project2/xinhe/kevinluo/ldsc/LDSCORE/baselineLD_v2.2_bedfiles/Promoter_* ./
+```
+
+Compute LD scores for gene baseline and save to `/project2/xinhe/kevinluo/ldsc/annot/ldscores/`
+```{bash, eval=FALSE}
+# 1000G African
+sbatch ~/projects/flu_regulatoryQTLs/code/ldsc_make_binary_annot_compute_ldscores_bedfiles.sbatch \
+ 1000G_AFR_phase3_baseline_gene_v2.2 \
+ /project2/xinhe/kevinluo/ldsc/annot/LDSCORE_baseline_v2.2_gene_bedfiles \
+ /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_AFR_Phase3_plink/1000G.AFR.phase3
+ 
+# 1000G European
+sbatch ~/projects/flu_regulatoryQTLs/code/ldsc_make_binary_annot_compute_ldscores_bedfiles.sbatch \
+ 1000G_EUR_phase3_baseline_gene_v2.2 \
+ /project2/xinhe/kevinluo/ldsc/annot/LDSCORE_baseline_v2.2_gene_bedfiles \
+ /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_EUR_Phase3_plink/1000G.EUR.QC
+```
+
+gene + histones baseline annotations
+```{bash}
+mkdir -p /project2/xinhe/kevinluo/ldsc/annot/LDSCORE_baseline_v2.2_gene_histones_bedfiles
+cd /project2/xinhe/kevinluo/ldsc/annot/LDSCORE_baseline_v2.2_gene_histones_bedfiles
+
+cp /project2/xinhe/kevinluo/ldsc/LDSCORE/baselineLD_v2.2_bedfiles/Coding_* ./
+cp /project2/xinhe/kevinluo/ldsc/LDSCORE/baselineLD_v2.2_bedfiles/UTR_* ./
+cp /project2/xinhe/kevinluo/ldsc/LDSCORE/baselineLD_v2.2_bedfiles/Intron_* ./
+cp /project2/xinhe/kevinluo/ldsc/LDSCORE/baselineLD_v2.2_bedfiles/Promoter_* ./
+cp /project2/xinhe/kevinluo/ldsc/LDSCORE/baselineLD_v2.2_bedfiles/H3K27ac_* ./
+cp /project2/xinhe/kevinluo/ldsc/LDSCORE/baselineLD_v2.2_bedfiles/H3K4me1_* ./
+cp /project2/xinhe/kevinluo/ldsc/LDSCORE/baselineLD_v2.2_bedfiles/H3K4me3_* ./
+cp /project2/xinhe/kevinluo/ldsc/LDSCORE/baselineLD_v2.2_bedfiles/H3K9ac_* ./
+```
+
+Compute LD scores for gene + histones baseline
+```{bash, eval=FALSE}
+# 1000G African
+sbatch ~/projects/flu_regulatoryQTLs/code/ldsc_make_binary_annot_compute_ldscores_bedfiles.sbatch \
+ 1000G_AFR_phase3_baseline_gene_histone_v2.2 \
+ /project2/xinhe/kevinluo/ldsc/annot/LDSCORE_baseline_v2.2_gene_histones_bedfiles \
+ /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_AFR_Phase3_plink/1000G.AFR.phase3
+ 
+# 1000G European
+sbatch ~/projects/flu_regulatoryQTLs/code/ldsc_make_binary_annot_compute_ldscores_bedfiles.sbatch \
+ 1000G_EUR_phase3_baseline_gene_histone_v2.2 \
+ /project2/xinhe/kevinluo/ldsc/annot/LDSCORE_baseline_v2.2_gene_histones_bedfiles \
+ /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_EUR_Phase3_plink/1000G.EUR.QC
+```
+
+Compute LD scores of QTL annotations for African population
+
+Computed LD scores for QTLs (SNP-level FDR < 10%) using African population
+```{bash, eval=FALSE}
+ANNOT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/
+OUT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/
+
+## Compute LD scores for QTL annotations
+for bedfile in /project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/annot_bed/*_Flu_QTLs_FDR0.1.bed
+do
+  ANNOT_PREFIX="$(basename ${bedfile} .bed)"
+  echo ${ANNOT_PREFIX}
+  sbatch --account=pi-xinhe ~/projects/flu_regulatoryQTLs/code/ldsc_binary_annot_QTL_1000G_AFR.sbatch ${ANNOT_PREFIX} ${ANNOT_DIR} ${OUT_DIR}
+done
+
+for bedfile in /project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/annot_bed/*_NI_QTLs_FDR0.1.bed
+do
+  ANNOT_PREFIX="$(basename ${bedfile} .bed)"
+  echo ${ANNOT_PREFIX}
+  sbatch --account=pi-xinhe ~/projects/flu_regulatoryQTLs/code/ldsc_binary_annot_QTL_1000G_AFR.sbatch ${ANNOT_PREFIX} ${ANNOT_DIR} ${OUT_DIR}
+done
+
+```
+
+Computed LD scores for histone marks from this study using African population
+```{bash, eval=FALSE}
+ANNOT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/
+OUT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/
+
+## Compute LD scores for histone mark peak annotations
+for bedfile in /project2/xinhe/kevinluo/flu_regulatoryQTLs/histone_bed_files/*.bed
+do
+  ANNOT_PREFIX="$(basename ${bedfile} .bed)"
+  echo ${ANNOT_PREFIX}
+  sbatch --account=pi-xinhe ~/projects/flu_regulatoryQTLs/code/ldsc_binary_annot_QTL_1000G_AFR.sbatch ${ANNOT_PREFIX} ${ANNOT_DIR} ${OUT_DIR}
+done
+
+# 1000G African
+sbatch ~/projects/flu_regulatoryQTLs/code/ldsc_make_binary_annot_compute_ldscores_bedfiles.sbatch \
+ 1000G_AFR_phase3_histones \
+ /project2/xinhe/kevinluo/flu_regulatoryQTLs/histone_bed_files \
+ /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_AFR_Phase3_plink/1000G.AFR.phase3
+ 
+# 1000G European
+sbatch ~/projects/flu_regulatoryQTLs/code/ldsc_make_binary_annot_compute_ldscores_bedfiles.sbatch \
+ 1000G_EUR_phase3_histones \
+ /project2/xinhe/kevinluo/flu_regulatoryQTLs/histone_bed_files \
+ /project2/xinhe/kevinluo/ldsc/LDSCORE/1000G_EUR_Phase3_plink/1000G.EUR.QC
+```
+
+PIP based continuous annotations
+
+Distance prior
+```{bash, eval=FALSE}
+ANNOT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/
+OUT_DIR=/project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/
+
+## Compute LD scores for PIP annotations using distance prior
+for bedfile in /project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/annot_bed/*_Flu_PIP_dist_prior_FDR0.1.bed
+do
+  ANNOT_PREFIX="$(basename ${bedfile} .bed)"
+  echo ${ANNOT_PREFIX}
+  sbatch  ~/projects/flu_regulatoryQTLs/code/ldsc_continuous_annot_QTL_1000G_AFR.sbatch ${ANNOT_PREFIX} ${ANNOT_DIR} ${OUT_DIR}
+done
+
+for bedfile in /project2/xinhe/kevinluo/flu_regulatoryQTLs/sldsc_results/annot/annot_bed/*_NI_PIP_dist_prior_FDR0.1.bed
+do
+  ANNOT_PREFIX="$(basename ${bedfile} .bed)"
+  echo ${ANNOT_PREFIX}
+  sbatch  ~/projects/flu_regulatoryQTLs/code/ldsc_continuous_annot_QTL_1000G_AFR.sbatch ${ANNOT_PREFIX} ${ANNOT_DIR} ${OUT_DIR}
+done
+```
+
+### Partition heritability using 1000G African reference
+
+Estimate the partitioned heritability and enrichment for each annotation separately.
+
+Run S-LDSC across a number of GWAS traits over the QTL annotations.
+
+SNP-level FDR < 10%
+```{bash, eval=FALSE}
+TRAITS=("AE" "MS" "RA" "Allergy" "Asthma" "ApD" "IIBDGC-CD" "IIBDGC-IBD" "IIBDGC-UC" "TAGC-Asthma" "SLE" "CD" "IBD" "UC")
+
+# African: gene baseline v2.2
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_QTL_annots_generic_baseline_1000G_AFR.sbatch ${trait} 1000G_AFR_phase3_baseline_gene_v2.2
+done
+
+# European: gene baseline v2.2
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_QTL_annots_generic_baseline.sbatch ${trait} 1000G_EUR_phase3_baseline_gene_v2.2
+done
+
+# African: gene + histone marks from LDSC's baseline v2.2
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_QTL_annots_generic_baseline_1000G_AFR.sbatch ${trait} 1000G_AFR_phase3_baseline_gene_histone_v2.2
+done
+
+# European: gene + histone marks from LDSC's baseline v2.2
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_QTL_annots_generic_baseline.sbatch ${trait} 1000G_EUR_phase3_baseline_gene_histone_v2.2
+done
+
+# African: gene baseline v2.2, joint with histone marks in this study
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_QTL_annots_generic_baseline_joint_histone_1000G_AFR.sbatch ${trait} 1000G_AFR_phase3_baseline_gene_v2.2
+done
+
+# European: gene baseline v2.2, joint with histone marks in this study
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_QTL_annots_generic_baseline_joint_histone.sbatch ${trait} 1000G_EUR_phase3_baseline_gene_v2.2
+done
+```
+
+
+Susie PIP based continuous annotation
+```{bash, eval=FALSE}
+TRAITS=("AE" "MS" "RA" "Allergy" "Asthma" "ApD" "IIBDGC-CD" "IIBDGC-IBD" "IIBDGC-UC" "TAGC-Asthma" "SLE" "CD" "IBD" "UC")
+
+# African: gene baseline v2.2
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_PIP_annots_generic_baseline_1000G_AFR.sbatch ${trait} 1000G_AFR_phase3_baseline_gene_v2.2
+done
+
+# European: gene baseline v2.2
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_PIP_annots_generic_baseline.sbatch ${trait} 1000G_EUR_phase3_baseline_gene_v2.2
+done
+
+# African: gene + histone marks from LDSC's baseline v2.2
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_PIP_annots_generic_baseline_1000G_AFR.sbatch ${trait} 1000G_AFR_phase3_baseline_gene_histone_v2.2
+done
+
+# European: gene + histone marks from LDSC's baseline v2.2
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_PIP_annots_generic_baseline.sbatch ${trait} 1000G_EUR_phase3_baseline_gene_histone_v2.2
+done
+
+# African: gene baseline v2.2, joint with histone marks in this study
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_PIP_annots_generic_baseline_joint_histone_1000G_AFR.sbatch ${trait} 1000G_AFR_phase3_baseline_gene_v2.2
+done
+
+# European: gene baseline v2.2, joint with histone marks in this study
+for trait in "${TRAITS[@]}"
+do
+  sbatch ~/projects/flu_regulatoryQTLs/code/run_sldsc_PIP_annots_generic_baseline_joint_histone.sbatch ${trait} 1000G_EUR_phase3_baseline_gene_v2.2
+done
+
+```

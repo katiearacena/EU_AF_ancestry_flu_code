@@ -1,0 +1,129 @@
+---
+title: "Finemapping notebook"
+author: "Kaixuan Luo"
+output:
+  workflowr::wflow_html:
+    toc: false
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+```
+
+## Procedure
+
+Prepare SuSiE input data
+
+```{bash prepare-susie-input, eval=FALSE}
+
+EXPS=("RNAseq_NI" "RNAseq_Flu" "ATACseq_NI" "ATACseq_Flu" "H3K27ac_NI" "H3K27ac_Flu" "H3K27me3_NI" "H3K27me3_Flu" "H3K4me1_NI" "H3K4me1_Flu" "H3K4me3_NI" "H3K4me3_Flu")
+
+EXPS=("ATACseq_NI" "ATACseq_Flu" "H3K27ac_NI" "H3K27ac_Flu" "H3K27me3_NI" "H3K27me3_Flu" "H3K4me1_NI" "H3K4me1_Flu" "H3K4me3_NI" "H3K4me3_Flu")
+
+for EXP_NAME in "${EXPS[@]}"
+do
+  echo "${EXP_NAME}"
+  sbatch ../code/prepare_susie_input_data_batcharray.sbatch ${EXP_NAME}
+done
+
+```
+
+```{bash}
+EXPS=("WGBS_Flu_full_E3" "WGBS_NI_full_E3"
+"WGBS_Flu_full_E4" "WGBS_NI_full_E4" 
+"WGBS_Flu_full_E5" "WGBS_NI_full_E5" 
+"WGBS_Flu_full_E6" "WGBS_NI_full_E6"
+"WGBS_Flu_full_E7" "WGBS_NI_full_E7")
+
+for EXP_NAME in "${EXPS[@]}"
+do
+  echo "${EXP_NAME}"
+  sbatch --mem=30G ~/projects/flu_regulatoryQTLs/code/prepare_subset_WGBS_susie_input_data_batcharray.sbatch ${EXP_NAME}
+done
+```
+
+Torus enrichment and compute SNP-level priors based on SNP to gene distances
+
+Perform enrichment analysis of annotations and compute SNP-level priors using the estimated enrichment estimates for each SNP in each locus.
+https://github.com/xqwen/torus
+https://xqwen.github.io/qtl_pipeline/
+https://github.com/xqwen/dap/wiki/Case-study:-multi-SNP-fine-mapping
+
+```{bash run-torus}
+EXPS=("RNAseq_NI" "RNAseq_Flu"
+"ATACseq_NI" "ATACseq_Flu" 
+"H3K27ac_NI" "H3K27ac_Flu" 
+"H3K27me3_NI" "H3K27me3_Flu" 
+"H3K4me1_NI" "H3K4me1_Flu" 
+"H3K4me3_NI" "H3K4me3_Flu")
+
+for EXP_NAME in "${EXPS[@]}"
+do
+  echo "${EXP_NAME}"
+  sbatch --mem=30G ~/projects/flu_regulatoryQTLs/code/get_torus_prior.sbatch ${EXP_NAME}
+done
+
+sbatch --mem=50G ~/projects/flu_regulatoryQTLs/code/get_torus_prior.sbatch "WGBS_NI"
+
+sbatch --mem=50G ~/projects/flu_regulatoryQTLs/code/get_torus_prior.sbatch "WGBS_Flu"
+
+```
+
+```{bash}
+EXPS=("WGBS_Flu_full_E3" "WGBS_NI_full_E3"
+"WGBS_Flu_full_E4" "WGBS_NI_full_E4" 
+"WGBS_Flu_full_E5" "WGBS_NI_full_E5" 
+"WGBS_Flu_full_E6" "WGBS_NI_full_E6"
+"WGBS_Flu_full_E7" "WGBS_NI_full_E7")
+
+for EXP_NAME in "${EXPS[@]}"
+do
+  echo "${EXP_NAME}"
+  sbatch --mem=40G ~/projects/flu_regulatoryQTLs/code/get_torus_prior_WGBS.sbatch ${EXP_NAME}
+done
+
+```
+
+
+Run SuSiE with distance prior, and uniform prior
+
+```{bash run-susie-dist-prior}
+EXPS=(
+"RNAseq_NI" "RNAseq_Flu"
+"ATACseq_NI" "ATACseq_Flu" 
+"H3K27ac_NI" "H3K27ac_Flu" 
+"H3K27me3_NI" "H3K27me3_Flu" 
+"H3K4me1_NI" "H3K4me1_Flu" 
+"H3K4me3_NI" "H3K4me3_Flu")
+
+for EXP_NAME in "${EXPS[@]}"
+do
+  echo "${EXP_NAME}"
+  sbatch --mem=30G ~/projects/flu_regulatoryQTLs/code/susie_allgenes.sbatch ${EXP_NAME}
+done
+```
+
+```{bash run-susie-WGBS}
+EXPS=( 
+"WGBS_Flu_full_E3" "WGBS_NI_full_E3" 
+"WGBS_Flu_full_E4" "WGBS_NI_full_E4"
+"WGBS_Flu_full_E5" "WGBS_NI_full_E5"
+"WGBS_Flu_full_E6" "WGBS_NI_full_E6"
+"WGBS_Flu_full_E7" "WGBS_NI_full_E7" )
+
+for EXP_NAME in "${EXPS[@]}"
+do
+  echo "${EXP_NAME}"
+  sbatch --mem=30G ~/projects/flu_regulatoryQTLs/code/susie_allgenes_WGBS.sbatch ${EXP_NAME}
+done
+
+```
+
+Combine susie results for different WGBS subsets
+```{bash}
+Rscript ~/projects/flu_regulatoryQTLs/code/combine_susie_WGBS_subsets.R
+```
+
+
