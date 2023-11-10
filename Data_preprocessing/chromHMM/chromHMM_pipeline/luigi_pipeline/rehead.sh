@@ -1,0 +1,1 @@
+/project2/lbarreiro/programs/samtools-1.10/samtools reheader -i -c 'perl -pe "s/^(@SQ.*)(\tSN:)(\d+|X|Y|MT)(\s|\$)/\$1Chr\$2\$3/"' $@
