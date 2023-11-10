@@ -1,0 +1,209 @@
+## May have to subset and parallelize WGBS data in this analysis. 
+argv <- commandArgs(trailingOnly = TRUE)
+step <- as.numeric(argv[1])
+
+# Load libraries
+library(limma)
+library(edgeR)
+library(relaimpo)
+library(robustbase)
+library(reshape2)
+library(ggplot2)
+library(dplyr)
+library(stringi)
+library(stringr)
+library(ggpubr)
+library(bsseq)
+
+## Set directory structure
+folder = "1_DE_infection_modeling"
+## Set directory 2 steps above script.
+setwd('../../../')
+## set outputs directory
+system(paste0("mkdir -p Outputs/",folder,"/PVE_analysis_results_MOCK"))
+OUTPUTS_dir <- paste0("Outputs/",folder,"/PVE_analysis_results_MOCK")
+
+## List data
+datatypes <- c("RNAseq","ATACseq","H3K27ac","H3K27me3","H3K4me1", "H3K4me3", "WGBS")
+rela_impo_outs <- data.frame(matrix(nrow = 2, ncol = length(datatypes)))
+
+for(j in length(datatypes)){
+
+  data_type_i <- datatypes[j]
+  print(paste0(data_type_i, " started"))
+
+  ## Load metadata file
+  meta_data = read.table(paste0("Inputs/metadata/", data_type_i, "_metadata.txt"))
+
+  ## Factorize
+  meta_data$Batch <- as.factor(meta_data$Batch)
+  meta_data$Genotyping_ID <- as.factor(meta_data$Genotyping_ID)
+  meta_data$Condition = factor(meta_data$Condition, levels=c("NI","Mock"))  
+  #remove data type string from chipseq metadata
+  rownames(meta_data)<- sub("_H3K27ac", "", rownames(meta_data))
+  rownames(meta_data)<- sub("_H3K4me1", "", rownames(meta_data))
+  rownames(meta_data)<- sub("_H3K27me3", "", rownames(meta_data))
+  rownames(meta_data)<- sub("_H3K4me3", "", rownames(meta_data))
+
+  ## Remove Flu and IPSC samples which are not used in analysis.
+  if(data_type_i=="RNAseq"){
+    meta_data <- meta_data[which(!meta_data$Condition=="Flu"),]
+    meta_data <- meta_data[!grepl("EU122", meta_data$Genotyping_ID),]
+  }else{
+    meta_data <- meta_data[which(!meta_data$Condition=="Flu"),]
+    meta_data <- meta_data[!grepl("EU122", meta_data$Genotyping_ID),]
+    meta_data <- meta_data[!grepl("IPSCs", meta_data$Genotyping_ID),]
+  }
+
+  dim(meta_data)
+
+  reorder_names <- rownames(meta_data)
+
+  ## Read in methylation data 
+  if(data_type_i=="WGBS"){
+    load("Inputs/counts_matrices/WGBS_filtered.counts_WITH_MOCK.RData")
+
+    BS.cov <- getCoverage(BSobj.fit.nolow2)
+
+    ## Filter based on coverage
+    #To minimize noise in methylation estimates due to low-coverage data, we restricted analysis to CpG sites 
+    # with coverage of ≥4 sequence reads in at least half of the samples in each condition. DSS accounts for low coverage
+    # in the model so it is not necessary before. 
+
+   keepLoci.ex <- which(rowSums(BS.cov[, BSobj.fit.nolow2$Condition == "Mock"] >= 4) > 2 &
+                       rowSums(BS.cov[, BSobj.fit.nolow2$Condition == "NI"] >= 4) > 17 )
+    length(keepLoci.ex)
+    BSobj.fit.nolow2 <- BSobj.fit.nolow2[keepLoci.ex,]
+    BSobj.fit.nolow2
+    ## get cts matrix from bsseq object
+    exp <- getMeth(BSobj.fit.nolow2, type="raw")
+
+    keep_samples <- colnames(exp)[!grepl("Flu", colnames(exp))]
+    keep_samples <- keep_samples[keep_samples!="EU09_Mock"]
+    exp <- exp[, keep_samples]
+    
+    ## change sample names of EU22, EU36, EU38
+    colnames(exp) <- gsub("AF22", "EU22", colnames(exp))
+    colnames(exp) <- gsub("AF36", "EU36", colnames(exp))
+    colnames(exp) <- gsub("AF38", "EU38", colnames(exp))
+    
+    NI_samples <- exp[,grepl("NI", colnames(exp))]
+    MOCK_samples <- exp[,grepl("Mock", colnames(exp))]
+       
+    all.NA_NI <-  rownames(NI_samples[rowVars(NI_samples, na.rm=TRUE) == 0, ])
+    all.NA_MOCK <- rownames(MOCK_samples[rowVars(MOCK_samples, na.rm=TRUE) == 0, ])
+    no.var <- rownames(exp[rowVars(exp, na.rm=TRUE) == 0, ])
+
+    to_remove <- c(all.NA_NI, all.NA_MOCK, no.var)
+    to_remove_uniq <- unique(to_remove)
+    length(to_remove_uniq)
+    exp <- subset(exp, !(rownames(exp) %in% to_remove_uniq))
+
+    ## should be == 0 if no mismatch
+    length(which(colnames(exp)!=rownames(meta_data)))
+    dim(exp)[1]
+
+    ## model infection differential expression 
+    exp = as.matrix(exp)
+    ## exp[1,]has too many NAs hence skipped in this pretest
+    gene_model = lm(exp[2,] ~ Genotyping_ID + Condition, data = meta_data)
+    rel_impo = suppressWarnings(calc.relimp(gene_model))
+
+    ## matrix to store
+    importances = data.frame(matrix(nrow = nrow(exp), ncol = length(rel_impo$lmg)))
+    rownames(importances) <- rownames(exp)
+    colnames(importances) <- names(rel_impo$lmg)
+
+    total_loops <- nrow(exp)
+    quat_loops <- ceiling(total_loops/4)
+    if (step != 4){
+      start <- 1 + quat_loops*(step-1)
+      end <- quat_loops*step
+    }else{
+      start <- 1 + quat_loops*(step-1)
+      end <- total_loops
+    }
+
+    print(paste0(data_type_i, " run", step, " starts"))
+    ## loop over a quater of genes
+    ## skip and place NA for any genes for which you cannot run relaimpo 
+    ## (those with 0 variance in either condition or too many missing data points)
+    for(i in start:end){
+        if(i%%1000 == 0) print(i)
+
+        gene_model = lm(exp[i,] ~ Genotyping_ID + Condition, data = meta_data)
+    
+        out <- tryCatch(
+            {
+            rel_impo = suppressWarnings(calc.relimp(gene_model, type = "lmg"))
+            importances[i,] = rel_impo$lmg
+            }, 
+            error=function(cond) {
+            message(cond)
+            message(" - SKIPPED")
+            importances[i,] = "NA"
+            }
+            )  
+        }
+
+  ## if any other data type
+    }else{
+  ## read in corrected expression
+    exp <- read.table(paste0("Outputs/", folder,"/", data_type_i, "_Mock_residuals/corrected_expression_MOCK.txt"), header = TRUE, sep = ",", row.names = 1)
+  ## read in weights
+    weights <-  read.table(paste0("Outputs/", folder,"/", data_type_i, "_Mock_residuals/weights_MOCK.txt"), header = TRUE, sep = ",", row.names = 1)
+
+    ## Make sure order and dimensions match
+    if(length(reorder_names) == dim(exp)[2]){
+      exp <- exp[reorder_names]
+      weights <- weights[reorder_names]
+    }else{
+      correct_names <- colnames(exp)
+      meta_data <- meta_data[rownames(meta_data) %in% correct_names,]
+      weights <- weights[,colnames(weights) %in% correct_names]
+      reorder_names <- rownames(meta_data)
+      exp <- exp[reorder_names]
+      weights <- weights[reorder_names]
+    }
+
+    ## should all == 0 if no mismatch
+    length(which(colnames(exp)!=rownames(meta_data)))
+    length(which(colnames(weights)!=rownames(meta_data)))
+    length(which(colnames(exp)!=colnames(weights)))
+
+    ## model infection differential expression
+    exp = as.matrix(exp)
+    weights = as.matrix(weights)
+    gene_model = lm(exp[1,] ~ Genotyping_ID + Condition, data = meta_data, weights = weights[1,])
+    rel_impo = suppressWarnings(calc.relimp(gene_model))
+
+    ## matrix to store
+    importances = data.frame(matrix(nrow = nrow(exp), ncol = length(rel_impo$lmg)))
+    rownames(importances) <- rownames(exp)
+    colnames(importances) <- names(rel_impo$lmg)
+
+    ## loop over all genes
+    for(i in 1:nrow(exp))
+    {
+      if(i%%1000 == 0) print(i)
+      gene_model = lm(exp[i,] ~ Genotyping_ID + Condition, data = meta_data, weights = weights[i,])
+      rel_impo = suppressWarnings(calc.relimp(gene_model, type = "lmg"))
+      importances[i,] = rel_impo$lmg
+    }
+  }
+
+  write.table(importances, paste0(OUTPUTS_dir,"/importances_",data_type_i,as.character(step),"_mock.txt"), quote = FALSE)
+
+  ## calculate col medians (median of all genes for each covariate -- collapses matrix)
+  medians <- as.data.frame(colMedians(as.matrix(importances)))
+  colnames(medians) <- c(paste0("medians_",data_type_i))
+
+  rownames(rela_impo_outs) <- colnames(importances)
+  colnames(rela_impo_outs)[j] <- colnames(medians)[1]
+  rela_impo_outs[,j] <- medians[,1]
+
+  print(paste0(data_type_i, " run", step, " completed"))
+}
+
+write.table(rela_impo_outs, paste0(OUTPUTS_dir,"/rela_impo_outs_mock.txt"), sep = ",", quote = FALSE)
+
