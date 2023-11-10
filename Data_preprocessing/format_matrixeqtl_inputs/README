@@ -1,0 +1,18 @@
+Use the 2 scripts contained in this directory --create_matrixeQTL_inputs_for_jointVCF.py and create_positions_file.py)-- 
+to create the inputs for matrixeQTL from the genotyping data and counts files, respectively.
+
+Run example:
+
+```
+python create_matrixeQTL_inputs_for_jointVCF.py vcf_file output_dir
+```
+This script is intended to convert a joint called genotype VCF file
+into input files ready for MatrixEQTL use . It creates both the SNPs_postitions.txt and genotypes.txt file. 
+
+```
+python create_positions_file.py input_file output_file
+```
+
+This script converts a counts table (of any phenotype data with the exception of CpG counts) into a position file for matrixQTL.
+
+```

@@ -1,0 +1,10 @@
+WGS, RNAseq, ATACseq, ChIPmentation, and WGBS were all processed using GenPipes. The link to the necessary documentation for implementation is listed below as well as the methods. 
+
+WGS: <https://genpipes.readthedocs.io/en/genpipes-v-3.6.2/user_guide/pipelines/gp_dnaseq.html>
+
+RNA-seq: <https://genpipes.readthedocs.io/en/genpipes-v-3.6.2/user_guide/pipelines/gp_rnaseq.html>
+
+ATAC-seq and ChIPmentation: <https://genpipes.readthedocs.io/en/genpipes-v-3.6.2/user_guide/pipelines/gp_chipseq.html>
+
+Methylation: <https://genpipes.readthedocs.io/en/genpipes-v-3.6.2/user_guide/pipelines/gp_wgs_methylseq.html>
+
