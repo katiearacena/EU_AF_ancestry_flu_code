@@ -1,11 +1,8 @@
 # Epigenetic variation impacts individual differences in the transcriptional response to influenza infection 
 
-This repository contains the code needed to conduct main analyses for Aracena et al. ("Epigenetic variation impacts individual differences in the transcriptional response to influenza infection")
+This repository contains the code needed to conduct main analyses for Aracena et al., 2024.
 
-Currently available on BioRxiv: https://www.biorxiv.org/content/10.1101/2022.05.10.491413v1
-
-KA Aracena, YL Lin, K Luo, A Pacis, S Gona, Z Mu, V Yotova, R Sindeaux, A Pramatarova, MM Simon, X Chen, C Groza, D Lougheed, R Gregoire, D Brownlee, C Boye, R Pique-Regi, Y Li, X He, D Bujold, T Pastinen, G Bourque, LB Barreiro
-
+KA Aracena, YL Lin, K Luo, A Pacis, S Gona, Z Mu, V Yotova, R Sindeaux, A Pramatarova, MM Simon, X Chen, C Groza, D Lougheed, R Gregoire, D Brownlee, C Boye, R Pique-Regi, Y Li, X He, D Bujold, T Pastinen, G Bourque, LB Barreiro Epigenetic variation impacts individual differences in the transcriptional response to influenza infection. Nat Genet 56, 408–419 (2024). https://doi.org/10.1038/s41588-024-01668-z
 
 ## General dependencies
 R (tested in version 3.6.3)
